@@ -1,0 +1,191 @@
+{
+  "version": 4,
+  "recorded_at": "2026-10-21T18:45:00",
+  "screen": [
+    1920,
+    1080
+  ],
+  "dpi": 96,
+  "note": "微信 4.x + 成电智慧学工；offset 是客户区左上角像素偏移；用 wait_content 代替固定等待以提速",
+  "steps": [
+    {
+      "type": "key",
+      "key": "esc",
+      "delay": 0.3,
+      "win": {
+        "title": "微信",
+        "class": "Qt51514QWindowIcon",
+        "process": "Weixin.exe"
+      }
+    },
+    {
+      "type": "open_miniprogram",
+      "keyword": "成电智慧学工",
+      "window_title": "成电智慧学工",
+      "delay": 0.3,
+      "search_offset": {
+        "x": 151,
+        "y": 57
+      },
+      "result_offset": {
+        "x": 134,
+        "y": 352
+      },
+      "row_step_px": 44,
+      "tries": 5,
+      "close_rel": {
+        "x": 0.911,
+        "y": 0.038
+      },
+      "win": {
+        "title": "微信",
+        "class": "Qt51514QWindowIcon",
+        "process": "Weixin.exe"
+      }
+    },
+    {
+      "type": "wait_stable",
+      "timeout": 15.0,
+      "spread": 40,
+      "delay": 0.2,
+      "win": {
+        "title": "成电智慧学工",
+        "class": "Chrome_WidgetWin_0",
+        "process": "WeChatAppEx.exe"
+      },
+      "stable_needed": 3,
+      "threshold": 1.5,
+      "min_spread": 30
+    },
+    {
+      "type": "ensure_text",
+      "text": "应用中心",
+      "back_offset": {
+        "x": 22,
+        "y": 45
+      },
+      "tries": 3,
+      "delay": 0.2,
+      "win": {
+        "title": "成电智慧学工",
+        "class": "Chrome_WidgetWin_0",
+        "process": "WeChatAppEx.exe"
+      }
+    },
+    {
+      "type": "wait",
+      "seconds": 0.8,
+      "delay": 0.0
+    },
+    {
+      "type": "click",
+      "delay": 0.3,
+      "offset": {
+        "x": 180,
+        "y": 111
+      },
+      "win": {
+        "title": "成电智慧学工",
+        "class": "Chrome_WidgetWin_0",
+        "process": "WeChatAppEx.exe"
+      }
+    },
+    {
+      "type": "hotkey",
+      "keys": [
+        "ctrl",
+        "a"
+      ],
+      "delay": 0.3,
+      "win": {
+        "title": "成电智慧学工",
+        "class": "Chrome_WidgetWin_0",
+        "process": "WeChatAppEx.exe"
+      }
+    },
+    {
+      "type": "paste",
+      "text": "晚安成电",
+      "delay": 0.3,
+      "win": {
+        "title": "成电智慧学工",
+        "class": "Chrome_WidgetWin_0",
+        "process": "WeChatAppEx.exe"
+      }
+    },
+    {
+      "type": "key",
+      "key": "enter",
+      "delay": 0.4,
+      "win": {
+        "title": "成电智慧学工",
+        "class": "Chrome_WidgetWin_0",
+        "process": "WeChatAppEx.exe"
+      }
+    },
+    {
+      "type": "wait",
+      "seconds": 1.2,
+      "delay": 0.0
+    },
+    {
+      "type": "click",
+      "delay": 0.4,
+      "offset": {
+        "x": 73,
+        "y": 214
+      },
+      "win": {
+        "title": "成电智慧学工",
+        "class": "Chrome_WidgetWin_0",
+        "process": "WeChatAppEx.exe"
+      }
+    },
+    {
+      "type": "wait_stable",
+      "timeout": 15.0,
+      "spread": 45,
+      "delay": 0.2,
+      "win": {
+        "title": "成电智慧学工",
+        "class": "Chrome_WidgetWin_0",
+        "process": "WeChatAppEx.exe"
+      },
+      "stable_needed": 3,
+      "threshold": 1.5,
+      "min_spread": 30
+    },
+    {
+      "type": "shot",
+      "delay": 0.1
+    },
+    {
+      "type": "click_verify",
+      "delay": 0.3,
+      "offset": {
+        "x": 208,
+        "y": 552
+      },
+      "region": {
+        "x": 150,
+        "y": 490,
+        "w": 116,
+        "h": 124
+      },
+      "threshold": 8.0,
+      "timeout": 10.0,
+      "win": {
+        "title": "成电智慧学工",
+        "class": "Chrome_WidgetWin_0",
+        "process": "WeChatAppEx.exe"
+      },
+      "settle": 1.2,
+      "retry_timeout": 6.0
+    },
+    {
+      "type": "wait",
+      "seconds": 1.0,
+      "delay": 0.0
+    }
+  ]
+}

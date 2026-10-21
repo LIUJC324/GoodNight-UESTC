@@ -1,0 +1,38 @@
+{
+  "wechat_exe": "",
+  "process_names": [
+    "WeChat.exe",
+    "Weixin.exe",
+    "WeChatAppEx.exe",
+    "WeChatApp.exe"
+  ],
+  "main_window_titles": [
+    "微信",
+    "WeChat",
+    "Weixin"
+  ],
+  "window_wait_seconds": 15,
+  "min_step_delay": 0.35,
+  "max_step_delay": 8.0,
+  "start_idle_seconds": 2.0,
+  "start_idle_timeout_seconds": 300,
+  "retries": 0,
+  "notify_failure": true,
+  "notify_success": false,
+  "screenshot_scale": 2,
+  "keep_logs_days": 30,
+  "force_geometry": true,
+  "email": {
+    "enabled": false,
+    "to": "you@qq.com",
+    "smtp_host": "smtp.qq.com",
+    "smtp_port": 465,
+    "username": "you@qq.com",
+    "password": "你的SMTP授权码",
+    "use_ssl": true,
+    "on_first_failure": true,
+    "on_success": false,
+    "attach_screenshot": true
+  },
+  "abort_on_screen_mismatch": true
+}

@@ -1,0 +1,14 @@
+﻿# 个人配置（含邮箱授权码，绝不提交）
+config.json
+state.json
+email_state.json
+last_run.json
+
+# 运行产物
+logs/
+.tmp/
+__pycache__/
+*.pyc
+
+# 录制备份
+steps-backup-*.json
