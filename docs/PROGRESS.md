@@ -115,3 +115,13 @@
 - 待验证：明天 22:00 真实打卡成功时，页面大概率弹"打卡成功/已打卡"提示，能否被 OCR 识别。
   若仍识别不到，需要改用像素比对（可以把当天的成功截图发我，我按实际界面加一条兜底）。
 - 新增 --no-wait-idle 参数，手动测试时不用干等 5 分钟空闲。
+
+### 23:55 仓库上传
+
+- GitHub 仓库：https://github.com/LIUJC324/GoodNight-UESTC
+- 首次推送成功：commit c15f894（22 个文件，config.json / logs / 运行状态均未上传）
+- 目录结构：根目录放核心脚本，scripts/ 放入口 bat，docs/ 放记录，	ools/ 放调试工具
+- 修复：所有 .bat 之前是 LF 换行导致 cmd 解析错乱（这也是 email_setup.bat 打不开的真正原因），
+  已统一改为 UTF-8 无 BOM + CRLF
+- 待办：文档里 scripts\ 路径的润色提交因为 GitHub 网络中断没推上去；
+  网络恢复后双击 scripts\push_to_github.bat 即可同步

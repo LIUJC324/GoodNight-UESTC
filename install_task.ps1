@@ -1,7 +1,7 @@
 ﻿<#
   晚安成电 · 自动签到：安装 / 卸载 / 自检
 
-  用法（在 PowerShell 里，或直接双击对应的 .bat）：
+  用法（在 PowerShell 里，或直接双击 scripts 目录下对应的 .bat）：
     powershell -ExecutionPolicy Bypass -File install_task.ps1
     powershell -ExecutionPolicy Bypass -File install_task.ps1 -Time 22:00
     powershell -ExecutionPolicy Bypass -File install_task.ps1 -RunNow
@@ -102,7 +102,7 @@ $stepsPath = Join-Path $AppDir "steps.json"
 if (-not (Test-Path $stepsPath)) {
     Say ""
     Say "提醒：还没有 steps.json，任务会按时启动但不知道该点什么。" "Yellow"
-    Say "      请先双击 record.bat 录制一遍签到流程，再回来安装任务。" "Yellow"
+    Say "      请先双击 scripts\record.bat 录制一遍签到流程，再回来安装任务。" "Yellow"
     Say ""
 }
 
@@ -144,7 +144,7 @@ if ($SelfTest) {
 }
 
 if ($SelfTest -and -not $Install) {
-    Say "仅做环境自检（未安装任务）。要安装任务请运行 install_task.bat。" "Cyan"
+    Say "仅做环境自检（未安装任务）。要安装任务请运行 scripts\install_task.bat。" "Cyan"
     exit 0
 }
 
@@ -202,8 +202,8 @@ Say "说明：" "Cyan"
 Say "  * 每天尝试 $($triggers.Count) 次：第一次失败会发邮件提醒，第二次是兜底；成功就写进 state.json，当天不再重复。"
 Say "  * 任务只在「你已登录且屏幕未锁定」时才有用；锁屏时 Windows 不允许模拟点击。"
 Say "  * 电脑需要保持开机（任务已设置唤醒计时器，睡眠可以被唤醒）。"
-Say "  * 想临时手动跑一次：双击 run_now.bat（加 --force 可忽略当天已成功的记录）。"
-Say "  * 想改时间：install_task.bat -Time 21:50 -Time2 23:20。"
+Say "  * 想临时手动跑一次：双击 scripts\run_now.bat（加 --force 可忽略当天已成功的记录）。"
+Say "  * 想改时间：scripts\install_task.bat -Time 21:50 -Time2 23:20。"
 
 if ($RunNow) {
     Say ""

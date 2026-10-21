@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """晚安成电 · 图形设置界面
 
-双击 email_setup.bat 打开。可以设置：
+双击 scripts\settings.bat 打开。可以设置：
   * 失败提醒邮箱（收件地址、SMTP 服务器、授权码）
   * 每天两次自动尝试的时间
   * 保存后自动更新 Windows 计划任务
@@ -283,7 +283,7 @@ class SettingsApp(tk.Tk):
             output = (result.stdout or "") + (result.stderr or "")
             ok = "已安装" in output or result.returncode == 0
             msg = ("已保存，计划任务已更新为每天 %s 和 %s。" % (time1, time2)
-                   if ok else "保存成功，但更新计划任务失败，请右键以管理员身份运行 install_task.bat。")
+                   if ok else "保存成功，但更新计划任务失败，请右键以管理员身份运行 scripts\install_task.bat。")
         except Exception as exc:  # noqa: BLE001
             msg = "保存成功，但更新计划任务出错：%s" % exc
         self.after(0, lambda: self.status(msg))
