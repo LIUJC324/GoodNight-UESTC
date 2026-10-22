@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import ctypes
 import difflib
 import getpass
@@ -782,6 +783,14 @@ DEFAULT_CONFIG = {
     "screenshot_scale": 2,
     "keep_logs_days": 30,
     "force_geometry": True,
+    "wifi_assist": {
+        "enabled": False,
+        "profile": "520",
+        "interface": "WLAN",
+        "connect_timeout_seconds": 25,
+        "settle_seconds": 6,
+        "restore": True,
+    },
     "email": {
         "enabled": False,
         "to": "",
@@ -1173,6 +1182,120 @@ def detect_wechat_exe() -> str:
             if os.path.isfile(candidate):
                 return candidate
     return ""
+
+
+def _powershell_line(script: str) -> str:
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script],
+            capture_output=True, timeout=30, creationflags=CREATE_NO_WINDOW,
+            encoding="utf-8", errors="replace")
+        return (result.stdout or "").strip()
+    except Exception as exc:
+        LOG.warning("执行 PowerShell 失败：%s", exc)
+        return ""
+
+
+def _run_netsh(args: list[str]) -> str:
+    try:
+        result = subprocess.run(["netsh"] + args, capture_output=True,
+                                timeout=25, creationflags=CREATE_NO_WINDOW)
+    except Exception as exc:
+        LOG.warning("执行 netsh 失败：%s", exc)
+        return ""
+    for encoding in ("utf-8", "gbk", "cp936"):
+        try:
+            return result.stdout.decode(encoding)
+        except Exception:
+            continue
+    return result.stdout.decode("utf-8", "replace")
+
+
+def wifi_visible(profile: str) -> bool:
+    """附近能不能扫到这个 Wi-Fi（避免不在范围时空等超时）。"""
+    if not profile:
+        return False
+    return profile in _run_netsh(["wlan", "show", "networks"])
+
+
+def wifi_connected(interface: str = "WLAN") -> bool:
+    status = _powershell_line(
+        "(Get-NetAdapter -Name '%s' -ErrorAction SilentlyContinue).Status" % interface)
+    return status.strip().lower() == "up"
+
+
+def wifi_ssid(interface: str = "WLAN") -> str:
+    return _powershell_line(
+        "(Get-NetConnectionProfile -InterfaceAlias '%s' -ErrorAction SilentlyContinue).Name" % interface)
+
+
+def wifi_connect(profile: str, interface: str = "WLAN", timeout: float = 25.0) -> bool:
+    """连接指定的已保存 Wi-Fi，等到网卡真的连上。"""
+    if not wifi_visible(profile):
+        LOG.info("附近搜不到 Wi-Fi「%s」，跳过（不等待）", profile)
+        return False
+    LOG.info("正在连接 Wi-Fi「%s」……", profile)
+    try:
+        subprocess.run(["netsh", "wlan", "connect", "name=%s" % profile, "interface=%s" % interface],
+                       capture_output=True, timeout=20, creationflags=CREATE_NO_WINDOW)
+    except Exception as exc:
+        LOG.warning("发起 Wi-Fi 连接失败：%s", exc)
+        return False
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        time.sleep(1.0)
+        if wifi_connected(interface):
+            ssid = wifi_ssid(interface)
+            LOG.info("Wi-Fi 已连接：%s", ssid or profile)
+            return True
+    LOG.warning("Wi-Fi「%s」在 %.0f 秒内没有连上", profile, timeout)
+    return False
+
+
+def wifi_disconnect(interface: str = "WLAN") -> bool:
+    LOG.info("断开 Wi-Fi，恢复走有线网络")
+    try:
+        subprocess.run(["netsh", "wlan", "disconnect", "interface=%s" % interface],
+                       capture_output=True, timeout=20, creationflags=CREATE_NO_WINDOW)
+        return True
+    except Exception as exc:
+        LOG.warning("断开 Wi-Fi 失败：%s", exc)
+        return False
+
+
+def wifi_assist_begin(cfg: dict) -> dict | None:
+    """打卡前临时连上 Wi-Fi（为了拿到 Wi-Fi 定位），返回是否需要事后还原。"""
+    conf = cfg.get("wifi_assist") or {}
+    if not conf.get("enabled"):
+        return None
+    profile = str(conf.get("profile") or "").strip()
+    interface = str(conf.get("interface") or "WLAN").strip()
+    if not profile:
+        LOG.warning("wifi_assist 已启用但没配置 profile，跳过")
+        return None
+
+    was_connected = wifi_connected(interface)
+    if was_connected:
+        LOG.info("Wi-Fi 已经是连接状态（%s），保持不动", wifi_ssid(interface) or interface)
+        return {"changed": False}
+
+    if not wifi_connect(profile, interface, float(conf.get("connect_timeout_seconds", 25))):
+        return {"changed": False}
+
+    settle = float(conf.get("settle_seconds", 6))
+    if settle > 0:
+        LOG.info("等 %.0f 秒让系统更新定位……", settle)
+        time.sleep(settle)
+    return {"changed": True}
+
+
+def wifi_assist_end(token: dict | None, cfg: dict) -> None:
+    conf = cfg.get("wifi_assist") or {}
+    if not token or not token.get("changed") or token.get("done"):
+        return
+    token["done"] = True
+    if conf.get("restore", True):
+        wifi_disconnect(str(conf.get("interface") or "WLAN"))
 
 
 def wait_until_idle(cfg: dict) -> None:
@@ -1879,6 +2002,11 @@ def cmd_run(args) -> int:
         LOG.info("试运行结束，共 %d 步", len(steps))
         return 0
 
+    # 打卡前临时连 Wi-Fi：让系统拿到 Wi-Fi 定位，跑完自动断回有线
+    wifi_token = wifi_assist_begin(cfg)
+    if wifi_token:
+        atexit.register(wifi_assist_end, wifi_token, cfg)
+
     win = ensure_wechat(cfg)
     LOG.info("微信窗口：%s [%s]", win["title"], win["process"])
     if not activate_window(win["hwnd"]):
@@ -1966,6 +2094,7 @@ def cmd_run(args) -> int:
             notify("晚安成电自动签到失败", message + "\n\n截图：" + final_shot, warn=True)
         else:
             LOG.info("失败已记录（有邮件提醒时不再弹窗）")
+    wifi_assist_end(wifi_token, cfg)
     return 0 if status == "ok" else 1
 
 
@@ -2035,6 +2164,33 @@ def cmd_email_setup(args) -> int:
     return 1
 
 
+def cmd_remind(args) -> int:
+    """发一封“该签到了”的提醒邮件（不操作微信，纯提醒）。"""
+    cfg = load_config()
+    if not email_ready(cfg):
+        print("邮件还没配置好，无法发送提醒。请先运行 scripts\\settings.bat")
+        return 1
+
+    now = datetime.now()
+    slot = args.slot or now.strftime("%H:%M")
+    subject = "晚安成电提醒 · 别忘了签到"
+    body = (
+        "到点了，记得用手机签一下「晚安成电」。\n\n"
+        "签到时段：21:00 – 23:30（越晚越容易卡）\n"
+        "操作：手机微信 → 成电智慧学工 → 应用中心 → 晚安成电 → 点打卡\n"
+        "提示：手机连宿舍 Wi-Fi（520）就能定位到欣苑，范围校验能过。\n\n"
+        "为什么电脑不自动签：电脑端小程序只能用 IP 定位，"
+        "会落在成华区政府，学校判定在范围外，所以改成手动。\n\n"
+        "本次提醒时间：%s（%s）\n"
+        "（收到两封说明两次提醒都发了；已经签过可以忽略）"
+    ) % (slot, now.strftime("%Y-%m-%d"))
+    if send_email(cfg, subject, body):
+        print("提醒邮件已发送到 %s" % (email_config(cfg).get("to") or ""))
+        return 0
+    print("邮件发送失败，请检查网络或授权码")
+    return 1
+
+
 def cmd_email_test(args) -> int:
     cfg = load_config()
     if not email_ready(cfg):
@@ -2044,6 +2200,27 @@ def cmd_email_test(args) -> int:
                     "这是一封测试邮件：说明失败提醒已经配置成功。")
     print("测试邮件已发送" if ok else "发送失败，详见日志")
     return 0 if ok else 1
+
+
+def cmd_wifi(args) -> int:
+    cfg = load_config()
+    conf = cfg.get("wifi_assist") or {}
+    interface = str(conf.get("interface") or "WLAN")
+    profile = str(conf.get("profile") or "520")
+    if args.action == "status":
+        print("网卡 %s：%s" % (interface, "已连接" if wifi_connected(interface) else "未连接"))
+        ssid = wifi_ssid(interface)
+        if ssid:
+            print("当前 SSID：%s" % ssid)
+        print("配置：profile=%s  enabled=%s" % (profile, conf.get("enabled")))
+    elif args.action == "on":
+        ok = wifi_connect(profile, interface, float(conf.get("connect_timeout_seconds", 25)))
+        print("已连接 Wi-Fi「%s」" % profile if ok else "连接失败")
+        return 0 if ok else 1
+    elif args.action == "off":
+        wifi_disconnect(interface)
+        print("已断开 Wi-Fi")
+    return 0
 
 
 def cmd_list(args) -> int:
@@ -2182,6 +2359,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("selftest", help="鼠标/键盘/截图自检")
     sub.add_parser("email-setup", help="配置失败提醒邮件")
     sub.add_parser("email-test", help="发一封测试邮件")
+    wifi_parser = sub.add_parser("wifi", help="临时连接/断开 Wi-Fi（获取 Wi-Fi 定位用）")
+    wifi_parser.add_argument("action", choices=["status", "on", "off"])
+    remind_parser = sub.add_parser("remind", help="发一封签到提醒邮件（不操作微信）")
+    remind_parser.add_argument("--slot", default="", help="提醒时段标签，如 22:00")
     shot_parser = sub.add_parser("shot", help="截屏")
     shot_parser.add_argument("path", nargs="?")
     list_parser = sub.add_parser("list", help="列出窗口")
@@ -2226,6 +2407,10 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_email_setup(args)
         if args.command == "email-test":
             return cmd_email_test(args)
+        if args.command == "wifi":
+            return cmd_wifi(args)
+        if args.command == "remind":
+            return cmd_remind(args)
     except SignError as exc:
         LOG.error("%s", exc)
         try:
