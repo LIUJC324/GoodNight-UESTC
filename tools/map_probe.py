@@ -55,10 +55,16 @@ def upscale(image, factor):
     return w.ScreenImage(image.width * factor, image.height * factor, bytes(out), image.origin)
 
 
-mp = [x for x in w.list_windows() if x["title"] == "成电智慧学工"][0]
-img = grab_window(mp["hwnd"])
-crop = w.crop_image(img, 10, 60, 400, 260)
-big = upscale(crop, 2)
-path = "logs/map_zoom2.png"
-open(path, "wb").write(w.encode_png(big))
-print("saved", path, big.width, big.height)
+def main() -> None:
+    mp = [x for x in w.list_windows() if x["title"] == "成电智慧学工"][0]
+    img = grab_window(mp["hwnd"])
+    crop = w.crop_image(img, 10, 60, 400, 260)
+    big = upscale(crop, 2)
+    path = "logs/map_zoom2.png"
+    with open(path, "wb") as fh:
+        fh.write(w.encode_png(big))
+    print("saved", path, big.width, big.height)
+
+
+if __name__ == "__main__":
+    main()

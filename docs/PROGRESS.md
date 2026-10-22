@@ -152,3 +152,11 @@
 - 新增 emind 子命令、install_remind.ps1、scripts\install_reminder.bat / uninstall_reminder.bat。
 - 另外保留 	ools\ip_watch.py 与计划任务 WananIPWatch（每 5 分钟记录出口 IP），
   用于观察校园网出口是否动态变化。
+
+### 2026-10-23 01:00 控制台
+
+- settings_gui.pyw 升级为「控制台」：运行模式（自动签到/邮件提醒/全部停止）、
+  启用日期区间（YYYY-MM-DD，到期自动跳过）、签到与提醒时间、任务状态刷新、
+  立即发提醒、保存并应用一键同步计划任务。
+- config.json 新增 mode / active_from / active_to；emind、un 启动时都会检查日期区间。
+- 已实测：区间外运行会被跳过；界面渲染与任务状态读取正常。

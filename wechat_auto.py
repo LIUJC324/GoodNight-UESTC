@@ -783,6 +783,9 @@ DEFAULT_CONFIG = {
     "screenshot_scale": 2,
     "keep_logs_days": 30,
     "force_geometry": True,
+    "mode": "remind",
+    "active_from": "",
+    "active_to": "",
     "wifi_assist": {
         "enabled": False,
         "profile": "520",
@@ -823,6 +826,27 @@ def save_config(cfg: dict) -> None:
     with open(CONFIG_PATH, "w", encoding="utf-8") as fh:
         json.dump(cfg, fh, ensure_ascii=False, indent=2)
         fh.write("\n")
+
+
+def active_range_text(cfg: dict) -> str:
+    start = str(cfg.get("active_from") or "").strip() or "不限"
+    end = str(cfg.get("active_to") or "").strip() or "不限"
+    return "%s ~ %s" % (start, end)
+
+
+def in_active_range(cfg: dict) -> bool:
+    """当前日期是否落在启用的日期区间内（留空表示不限）。"""
+    today = datetime.now().date()
+    start = str(cfg.get("active_from") or "").strip()
+    end = str(cfg.get("active_to") or "").strip()
+    try:
+        if start and today < datetime.strptime(start, "%Y-%m-%d").date():
+            return False
+        if end and today > datetime.strptime(end, "%Y-%m-%d").date():
+            return False
+    except ValueError:
+        return True  # 格式不对就不拦，交给界面去校验
+    return True
 
 
 def load_steps() -> dict:
@@ -1960,6 +1984,9 @@ def prune_logs(cfg: dict) -> None:
 def cmd_run(args) -> int:
     cfg = load_config()
     prune_logs(cfg)
+    if not in_active_range(cfg):
+        LOG.info("今天不在启用区间（%s），本次跳过", active_range_text(cfg))
+        return 0
     data = load_steps()
     steps = data.get("steps") or []
     if not steps:
@@ -2167,6 +2194,9 @@ def cmd_email_setup(args) -> int:
 def cmd_remind(args) -> int:
     """发一封“该签到了”的提醒邮件（不操作微信，纯提醒）。"""
     cfg = load_config()
+    if not in_active_range(cfg):
+        print("今天不在启用区间（%s），不发送提醒。" % active_range_text(cfg))
+        return 0
     if not email_ready(cfg):
         print("邮件还没配置好，无法发送提醒。请先运行 scripts\\settings.bat")
         return 1
