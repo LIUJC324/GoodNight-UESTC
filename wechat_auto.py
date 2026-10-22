@@ -1429,11 +1429,38 @@ def _is_success_text(text: str) -> bool:
     return False
 
 
+def status_looks_signed(win: dict) -> bool:
+    """用颜色判断打卡页是不是已经变成「已打卡」样式（文字是画布绘制的，OCR 读不出）。"""
+    try:
+        image = capture_client(win)
+    except Exception:
+        return False
+
+    circle = crop_image(image, 120, 430, 180, 230)   # 中间状态圆
+    strip = crop_image(image, 20, 690, 380, 40)      # 底部结果条
+
+    def ratio(part: ScreenImage, test) -> float:
+        data = part.rgb
+        total = max(part.width * part.height, 1)
+        hit = 0
+        for i in range(0, len(data), 3):
+            if test(data[i], data[i + 1], data[i + 2]):
+                hit += 1
+        return hit / total
+
+    blue = ratio(circle, lambda r, g, b: b > 140 and b - r > 60 and b - g > 60)
+    green = ratio(strip, lambda r, g, b: g > 180 and (g - r) > 6 and (g - b) > 6)
+    return blue < 0.12 and green > 0.15
+
+
 def verify_by_text(win: dict, timeout: float = 15.0) -> bool:
-    """点击后 OCR 找成功提示，找到才算真的签上。"""
+    """点击后校验：优先 OCR 找成功提示，其次看状态区颜色是否变成已打卡样式。"""
     deadline = time.time() + timeout
     while time.time() < deadline:
-        time.sleep(1.2)
+        time.sleep(1.0)
+        if status_looks_signed(win):
+            LOG.info("状态区已变成「已打卡」样式（蓝色圆消失、底部出现绿色结果条）")
+            return True
         try:
             ensure_foreground(win)
             lines = ocr_lines(capture_client(win))
@@ -1571,6 +1598,40 @@ def execute_steps(steps: list[dict], cfg: dict, dry_run: bool = False) -> dict:
                     win, target, step.get("back_offset") or {"x": 22, "y": 45},
                     int(step.get("tries", 3))):
                 LOG.warning("没能在「%s」页面，继续尝试", target)
+
+        elif kind == "click_text":
+            target = str(step.get("text", ""))
+            timeout = float(step.get("timeout", 6.0))
+            deadline = time.time() + timeout
+            hit = None
+            while time.time() < deadline:
+                try:
+                    hits = find_text_lines(win, target, float(step.get("threshold", 0.6)))
+                except Exception:
+                    hits = []
+                if hits:
+                    hit = max(hits, key=lambda item: item["ratio"])
+                    break
+                time.sleep(0.6)
+            if hit:
+                LOG.info("[%d/%d] 找到并点击「%s」(%d, %d)", index, total,
+                         hit["text"], hit["x"], hit["y"])
+                if not dry_run:
+                    activate_window(win["hwnd"])
+                    click_at(hit["x"], hit["y"])
+            else:
+                LOG.info("[%d/%d] 页面上没有「%s」，跳过这一步", index, total, target)
+                if not step.get("optional", True):
+                    raise SignError("没有在页面上找到「%s」" % target)
+
+        elif kind == "verify_success":
+            if dry_run:
+                LOG.info("[%d/%d] 校验打卡是否成功", index, total)
+                continue
+            LOG.info("[%d/%d] 校验打卡结果……", index, total)
+            if not verify_by_text(win, float(step.get("timeout", 12.0))):
+                raise SignError("没有看到打卡成功的提示")
+            result["verified"] = True
 
         elif kind == "click_verify":
             LOG.info("[%d/%d] 点击打卡并校验结果", index, total)
